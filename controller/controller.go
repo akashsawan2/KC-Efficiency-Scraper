@@ -165,6 +165,7 @@ func FetchAndWriteControllerData(inputURL, clusterName, window, bucketName, regi
 			if name == "__unallocated__" {
 				continue
 			}
+			name = re.ReplaceAllString(name, "")
 
 			properties := controllerOne["properties"].(map[string]interface{})
 
@@ -218,11 +219,10 @@ func FetchAndWriteControllerData(inputURL, clusterName, window, bucketName, regi
 
 			if strings.HasPrefix(name, "rollout:") {
 				nameWithoutRollout := strings.TrimPrefix(name, "rollout:")
-				nameWithoutRolloutSuffix := re.ReplaceAllString(nameWithoutRollout, "")
 				
 				rolloutRecord := make([]string, len(record))
 				copy(rolloutRecord, record)                  
-				rolloutRecord[0] = nameWithoutRolloutSuffix     
+				rolloutRecord[0] = nameWithoutRollout     
 				rolloutData = append(rolloutData, rolloutRecord)
 			}
 
