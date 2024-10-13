@@ -9,11 +9,12 @@ import (
 	"kubecost-efficiency-fetcher/configs"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
 	"sync"
+	"time"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"time"
-	"os"
 )
 
 func FetchAndWriteServiceData(inputURL, clusterName, window, bucketName, region string, wg *sync.WaitGroup) {
@@ -103,7 +104,7 @@ func FetchAndWriteServiceData(inputURL, clusterName, window, bucketName, region 
 
 	if !fileExists {
 		header := []string{
-			"Service","ClusterName", "Region", "Namespace", "Window Start", "Window End",
+			"Service", "ClusterName", "Region", "Namespace", "Window Start", "Window End",
 			"Cpu Cost", "Gpu Cost", "Ram Cost", "PV Cost", "Network Cost",
 			"LoadBalancer Cost", "Total Cost", "Cpu Efficiency",
 			"Ram Efficiency", "Total Efficiency",
@@ -115,7 +116,7 @@ func FetchAndWriteServiceData(inputURL, clusterName, window, bucketName, region 
 	}
 
 	for _, element := range data {
-		if element == nil{
+		if element == nil {
 			configs.InfoLogger.Println("No Data for Service")
 			continue
 		}
@@ -128,13 +129,15 @@ func FetchAndWriteServiceData(inputURL, clusterName, window, bucketName, region 
 			if name == "__unallocated__" {
 				continue
 			}
+			name = strings.TrimSuffix(name, "-root")
+			name = strings.TrimSuffix(name, "-canary")
 
 			properties := serviceOne["properties"].(map[string]interface{})
 
 			var labels map[string]interface{}
 			var region string
 			var namespaceService string
-			
+
 			if value, ok := properties["namespace"].(string); ok {
 				namespaceService = value
 			} else {
@@ -146,7 +149,7 @@ func FetchAndWriteServiceData(inputURL, clusterName, window, bucketName, region 
 				if val_region, ok := labels["topology_kubernetes_io_region"].(string); ok {
 					region = val_region
 				} else {
-					region = "" 
+					region = ""
 				}
 			} else {
 				region = ""
@@ -168,7 +171,7 @@ func FetchAndWriteServiceData(inputURL, clusterName, window, bucketName, region 
 			totalEfficiency := serviceOne["totalEfficiency"].(float64) * 100
 
 			record := []string{
-				name,clusterName ,region, namespaceService, windowStart, windowEnd,
+				name, clusterName, region, namespaceService, windowStart, windowEnd,
 				fmt.Sprintf("%f", cpuCost), fmt.Sprintf("%f", gpuCost),
 				fmt.Sprintf("%f", ramCost), fmt.Sprintf("%f", pvCost),
 				fmt.Sprintf("%f", networkCost), fmt.Sprintf("%f", loadBalancerCost),
@@ -196,7 +199,6 @@ func FetchAndWriteServiceData(inputURL, clusterName, window, bucketName, region 
 		configs.ErrorLogger.Println("Error saving file service.csv:", err)
 		return
 	}
-
 
 	_, err = svc.PutObject(&s3.PutObjectInput{
 		Bucket:      aws.String(bucketName),
